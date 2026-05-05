@@ -12,13 +12,15 @@ Este documento resume rutas, controladores, servicios y tecnologías del servido
 | Variables de entorno | dotenv |
 | CORS | cors (origen permitido: `http://localhost:3000`) |
 | Subida de ficheros | multer (ruta `POST /upload`) |
-| Validación candidatos | Lógica en `application/validator.ts` + modelos de dominio |
+| Tests | Jest, ts-jest, supertest |
 
 ## Estructura relevante (`backend/src`)
 
 ```
 src/
-├── index.ts                 # Arranque Express, middleware Prisma, montaje de rutas
+├── index.ts                 # Arranque: Prisma + listen en puerto 3010
+├── createApp.ts             # Fábrica Express (inyecta Prisma); usada también en tests
+├── types/express.d.ts       # Augmentación `req.prisma`
 ├── application/
 │   ├── services/
 │   │   ├── candidateService.ts
@@ -28,11 +30,12 @@ src/
 │   └── validator.ts
 ├── domain/models/           # Modelos de dominio (Prisma encapsulado en clases)
 ├── presentation/controllers/
-│   ├── candidateController.ts  # POST/GET candidatos, PUT etapa
-│   └── positionController.ts   # GET candidatos por posición
-└── routes/
-    ├── candidateRoutes.ts
-    └── positionRoutes.ts
+│   ├── candidateController.ts
+│   └── positionController.ts
+├── routes/
+│   ├── candidateRoutes.ts
+│   └── positionRoutes.ts
+└── test/                    # Jest: unitarios de servicios + rutas con Prisma mockeado
 ```
 
 ## Rutas HTTP
@@ -60,6 +63,21 @@ src/
   - `positionId` (número): posición sobre la que se actualiza la aplicación.
   - `interviewStepId` (número): nueva etapa; debe pertenecer al `InterviewFlow` de esa posición.
 - **Errores:** 404 si no hay aplicación para ese par candidato–posición; 400 si la etapa no es válida para el flujo de la posición.
+
+## Tests
+
+Desde `backend/`:
+
+```bash
+npm test
+```
+
+- `src/test/positionCandidateService.test.ts` — `positionExists`, mapeo y media de scores.
+- `src/test/candidateStageService.test.ts` — validación del flujo (`InterviewFlow` / pasos permitidos), 404 y actualización.
+- `src/test/positions.routes.test.ts` — `GET /positions/:id/candidates` con Prisma mockeado (supertest).
+- `src/test/candidates.stage.routes.test.ts` — `PUT /candidates/:id/stage` (400/404/200 y coerción de números en JSON).
+
+La app HTTP se construye con `createApp(prisma)` sin abrir puerto, facilitando pruebas aisladas.
 
 ## Compilación y arranque
 
